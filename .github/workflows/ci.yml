@@ -1,0 +1,58 @@
+name: PHP Composer
+
+on:
+  push:
+    branches: [ github-actions-ci-pipeline ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Validate composer.json and composer.lock
+      run: composer validate --strict
+
+    - name: Cache Composer packages
+      id: composer-cache
+      uses: actions/cache@v2
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: drupal_codequality 
+        uses: docker://hussainweb/drupalqa:php7.4
+        with:
+          cmd: |
+            composer validate 
+            phplint --no-cache -v web/modules/custom/ 
+            phpcs --standard=Drupal --extensions=php,module,inc,install,test,profile,theme --ignore=/node_modules/ web/modules/custom 
+            phpcs --standard=DrupalPractice --extensions=php,module,inc,install,test,profile,theme --ignore=/node_modules/ web/modules/custom 
+            phpmd web/modules/custom/ text phpmd.xml
+
+    - name: drupal_tests 
+        uses: docker://hussainweb/drupal-base:php7.4
+        with:
+          cmd: |
+            composer install -o
+            ./vendor/drush/drush/drush cr
+            ./vendor/drush/drush/drush -y updatedb
+            ./vendor/drush/drush/drush -y config-import
+
+            ./vendor/bin/phpunit --testsuite unit
+            ./vendor/bin/phpunit --bootstrap=./vendor/weitzman/drupal-test-traits/src/bootstrap-fast.php --configuration ./phpunit.xml --testsuite existing-site
+
+     
+
+    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
+    # Docs: https://getcomposer.org/doc/articles/scripts.md
+
+    # - name: Run test suite
+    #   run: composer run-script test
