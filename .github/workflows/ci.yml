@@ -26,6 +26,8 @@ jobs:
       uses: docker://hussainweb/drupal-base:php7.4
       with:
         cmd: |
+          composer install -o
+          composer require drush/drush 
           vendor/drush/drush/drush cr
           vendor/drush/drush/drush -y updatedb
           vendor/drush/drush/drush -y config-import
@@ -46,6 +48,8 @@ jobs:
       uses: docker://skippednote/drupal-cypress:1.0.5
       with:
         cmd: |
+          composer install -o
+          composer require drush/drush 
           vendor/bin/drush -y updb
           vendor/bin/drush -y cim
           vendor/bin/drush upwd ct-admin "ct-admin"
